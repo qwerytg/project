@@ -1,0 +1,254 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+
+namespace CarMarketApp
+{
+    public partial class Form1 : Form
+    {
+        // Список всех автомобилей
+        private BindingList<Car> carsList;
+
+        // Элементы интерфейса
+        private DataGridView dgvCars;
+        private TextBox txtBrand, txtModel, txtYear, txtPrice, txtSearch;
+        private Button btnAdd, btnBuy, btnSearch, btnReset;
+        private Label lblTotalBalance;
+        private decimal userBalance = 5000000; // Начальный баланс покупателя (5 млн руб.)
+
+        public Form1()
+        {
+            InitializeCustomUI();
+            LoadInitialData();
+        }
+
+        private void InitializeCustomUI()
+        {
+            // Настройка главного окна
+            this.Text = "АвтоМаркет — Покупка и продажа автомобилей";
+            this.Size = new Size(920, 560);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.Font = new Font("Segoe UI", 10);
+
+            // Панель баланса
+            lblTotalBalance = new Label
+            {
+                Text = $"Ваш баланс: {userBalance:N0} ₽",
+                Location = new Point(20, 15),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.DarkGreen
+            };
+            this.Controls.Add(lblTotalBalance);
+
+            // Поле поиска
+            Label lblSearch = new Label { Text = "Поиск по марке:", Location = new Point(420, 18), AutoSize = true };
+            txtSearch = new TextBox { Location = new Point(540, 15), Width = 160 };
+            btnSearch = new Button { Text = "Найти", Location = new Point(710, 14), Width = 85, Height = 28 };
+            btnReset = new Button { Text = "Сброс", Location = new Point(800, 14), Width = 85, Height = 28 };
+
+            btnSearch.Click += BtnSearch_Click;
+            btnReset.Click += BtnReset_Click;
+
+            this.Controls.AddRange(new Control[] { lblSearch, txtSearch, btnSearch, btnReset });
+
+            // Таблица автомобилей
+            dgvCars = new DataGridView
+            {
+                Location = new Point(20, 55),
+                Size = new Size(865, 290),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                BackgroundColor = Color.White
+            };
+            this.Controls.Add(dgvCars);
+
+            // Кнопка покупки выбранного авто
+            btnBuy = new Button
+            {
+                Text = "Купить выбранный автомобиль",
+                Location = new Point(625, 360),
+                Size = new Size(260, 40),
+                BackColor = Color.SeaGreen,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+            btnBuy.Click += BtnBuy_Click;
+            this.Controls.Add(btnBuy);
+
+            // Группа добавления нового объявления (Продажа)
+            GroupBox grpSell = new GroupBox
+            {
+                Text = "Выставить автомобиль на продажу",
+                Location = new Point(20, 410),
+                Size = new Size(865, 95)
+            };
+
+            Label lblBrand = new Label { Text = "Марка:", Location = new Point(15, 38), AutoSize = true };
+            txtBrand = new TextBox { Location = new Point(70, 35), Width = 130 };
+
+            Label lblModel = new Label { Text = "Модель:", Location = new Point(215, 38), AutoSize = true };
+            txtModel = new TextBox { Location = new Point(280, 35), Width = 130 };
+
+            Label lblYear = new Label { Text = "Год:", Location = new Point(425, 38), AutoSize = true };
+            txtYear = new TextBox { Location = new Point(465, 35), Width = 70 };
+
+            Label lblPrice = new Label { Text = "Цена (₽):", Location = new Point(550, 38), AutoSize = true };
+            txtPrice = new TextBox { Location = new Point(620, 35), Width = 110 };
+
+            btnAdd = new Button
+            {
+                Text = "Добавить",
+                Location = new Point(745, 33),
+                Size = new Size(105, 32),
+                BackColor = Color.SteelBlue,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnAdd.Click += BtnAdd_Click;
+
+            grpSell.Controls.AddRange(new Control[] { lblBrand, txtBrand, lblModel, txtModel, lblYear, txtYear, lblPrice, txtPrice, btnAdd });
+            this.Controls.Add(grpSell);
+        }
+
+        private void LoadInitialData()
+        {
+            carsList = new BindingList<Car>
+            {
+                new Car { Brand = "Toyota", Model = "Camry", Year = 2021, Price = 2850000, Status = "В продаже" },
+                new Car { Brand = "Kia", Model = "Rio", Year = 2019, Price = 1350000, Status = "В продаже" },
+                new Car { Brand = "BMW", Model = "X5", Year = 2022, Price = 7400000, Status = "В продаже" },
+                new Car { Brand = "Lada", Model = "Vesta", Year = 2023, Price = 1450000, Status = "В продаже" }
+            };
+
+            dgvCars.DataSource = carsList;
+            FormatColumns();
+        }
+
+        private void FormatColumns()
+        {
+            if (dgvCars.Columns["Brand"] != null) dgvCars.Columns["Brand"].HeaderText = "Марка";
+            if (dgvCars.Columns["Model"] != null) dgvCars.Columns["Model"].HeaderText = "Модель";
+            if (dgvCars.Columns["Year"] != null) dgvCars.Columns["Year"].HeaderText = "Год выпуска";
+            if (dgvCars.Columns["Price"] != null)
+            {
+                dgvCars.Columns["Price"].HeaderText = "Цена (₽)";
+                dgvCars.Columns["Price"].DefaultCellStyle.Format = "N0";
+            }
+            if (dgvCars.Columns["Status"] != null) dgvCars.Columns["Status"].HeaderText = "Статус";
+        }
+
+        // Логика выставления авто на продажу
+        private void BtnAdd_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtBrand.Text) || string.IsNullOrWhiteSpace(txtModel.Text))
+            {
+                MessageBox.Show("Введите марку и модель автомобиля!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(txtYear.Text, out int year) || year < 1950 || year > DateTime.Now.Year + 1)
+            {
+                MessageBox.Show("Введите корректный год выпуска!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!decimal.TryParse(txtPrice.Text, out decimal price) || price <= 0)
+            {
+                MessageBox.Show("Введите корректную цену!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            carsList.Add(new Car
+            {
+                Brand = txtBrand.Text.Trim(),
+                Model = txtModel.Text.Trim(),
+                Year = year,
+                Price = price,
+                Status = "В продаже"
+            });
+
+            // Очистка полей
+            txtBrand.Clear();
+            txtModel.Clear();
+            txtYear.Clear();
+            txtPrice.Clear();
+            MessageBox.Show("Автомобиль успешно выставлен на продажу!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        // Логика покупки авто
+        private void BtnBuy_Click(object sender, EventArgs e)
+        {
+            if (dgvCars.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите автомобиль из списка!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            Car selectedCar = (Car)dgvCars.SelectedRows[0].DataBoundItem;
+
+            if (selectedCar.Status == "Продано")
+            {
+                MessageBox.Show("Этот автомобиль уже продан.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (userBalance < selectedCar.Price)
+            {
+                MessageBox.Show("Недостаточно средств на балансе для покупки этого автомобиля.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            DialogResult confirm = MessageBox.Show(
+                $"Купить {selectedCar.Brand} {selectedCar.Model} ({selectedCar.Year} г.) за {selectedCar.Price:N0} ₽?",
+                "Подтверждение покупки",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirm == DialogResult.Yes)
+            {
+                userBalance -= selectedCar.Price;
+                selectedCar.Status = "Продано";
+                lblTotalBalance.Text = $"Ваш баланс: {userBalance:N0} ₽";
+                dgvCars.Refresh();
+                MessageBox.Show("Поздравляем с покупкой автомобиля!", "Сделка завершена", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        // Поиск по марке
+        private void BtnSearch_Click(object sender, EventArgs e)
+        {
+            string query = txtSearch.Text.Trim().ToLower();
+            if (string.IsNullOrEmpty(query)) return;
+
+            var filtered = new BindingList<Car>(
+                carsList.Where(c => c.Brand.ToLower().Contains(query)).ToList()
+            );
+            dgvCars.DataSource = filtered;
+        }
+
+        // Сброс поиска
+        private void BtnReset_Click(object sender, EventArgs e)
+        {
+            txtSearch.Clear();
+            dgvCars.DataSource = carsList;
+        }
+    }
+
+    // Модель данных автомобиля
+    public class Car
+    {
+        public string Brand { get; set; }
+        public string Model { get; set; }
+        public int Year { get; set; }
+public decimal Price { get; set; }
+public string Status { get; set; }
+}
+}
